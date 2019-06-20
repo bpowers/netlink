@@ -7,10 +7,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bpowers/netlink"
+	"github.com/bpowers/netlink/nlenc"
+	"github.com/bpowers/netlink/nltest"
 	"github.com/google/go-cmp/cmp"
-	"github.com/mdlayher/netlink"
-	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/netlink/nltest"
 	"golang.org/x/sys/unix"
 )
 

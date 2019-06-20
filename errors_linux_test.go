@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bpowers/netlink"
 	"github.com/google/go-cmp/cmp"
-	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
 

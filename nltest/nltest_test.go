@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/bpowers/netlink"
+	"github.com/bpowers/netlink/nltest"
 	"github.com/google/go-cmp/cmp"
-	"github.com/mdlayher/netlink"
-	"github.com/mdlayher/netlink/nltest"
 )
 
 func TestConnSend(t *testing.T) {

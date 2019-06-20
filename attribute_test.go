@@ -8,8 +8,8 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/bpowers/netlink/nlenc"
 	"github.com/google/go-cmp/cmp"
-	"github.com/mdlayher/netlink/nlenc"
 )
 
 func TestMarshalAttributes(t *testing.T) {

@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bpowers/netlink"
+	"github.com/bpowers/netlink/nlenc"
 	"github.com/google/go-cmp/cmp"
-	"github.com/mdlayher/netlink"
-	"github.com/mdlayher/netlink/nlenc"
 	"golang.org/x/net/bpf"
 	"golang.org/x/sys/unix"
 )
@@ -595,7 +595,7 @@ func shell(t *testing.T, name string, arg ...string) {
 	}
 
 	if err := cmd.Wait(); err != nil {
-		// TODO(mdlayher): switch back to cmd.ProcessState.ExitCode() when we
+		// TODO(bpowers): switch back to cmd.ProcessState.ExitCode() when we
 		// drop support for Go 1.11.x.
 		// Shell operations in these tests require elevated privileges.
 		if cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus() == int(unix.EPERM) {

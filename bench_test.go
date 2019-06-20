@@ -3,7 +3,7 @@ package netlink_test
 import (
 	"testing"
 
-	"github.com/mdlayher/netlink"
+	"github.com/bpowers/netlink"
 )
 
 var attrBench = []struct {

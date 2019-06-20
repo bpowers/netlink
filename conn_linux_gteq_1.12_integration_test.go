@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bpowers/netlink"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jsimonetti/rtnetlink/rtnl"
-	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
 

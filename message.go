@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mdlayher/netlink/nlenc"
+	"github.com/bpowers/netlink/nlenc"
 )
 
 // Various errors which may occur when attempting to marshal or unmarshal

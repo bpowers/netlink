@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mdlayher/netlink/nlenc"
+	"github.com/bpowers/netlink/nlenc"
 )
 
 func TestHeaderFlagsString(t *testing.T) {
