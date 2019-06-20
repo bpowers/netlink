@@ -168,7 +168,7 @@ func (c *conn) Receive() ([]Message, error) {
 
 	n = nlmsgAlign(n)
 
-	raw, err := syscall.ParseNetlinkMessage(b[:n])
+	raw, err := ParseNetlinkMessage(b[:n])
 	if err != nil {
 		return nil, err
 	}
