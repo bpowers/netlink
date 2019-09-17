@@ -13,21 +13,21 @@ import (
 
 // Round the length of a netlink message up to align it properly.
 func nlmAlignOf(msglen int) int {
-	return (msglen + syscall.NLMSG_ALIGNTO - 1) & ^(syscall.NLMSG_ALIGNTO - 1)
+	return (msglen + NLMSG_ALIGNTO - 1) & ^(NLMSG_ALIGNTO - 1)
 }
 
 // ParseNetlinkMessage parses b as an array of netlink messages and
 // returns the slice containing the NetlinkMessage structures.
-func ParseNetlinkMessage(b []byte) ([]syscall.NetlinkMessage, error) {
-	var msgs []syscall.NetlinkMessage
-	for len(b) >= syscall.NLMSG_HDRLEN {
+func ParseNetlinkMessage(b []byte) ([]NetlinkMessage, error) {
+	var msgs []NetlinkMessage
+	for len(b) >= NLMSG_HDRLEN {
 		h, dbuf, dlen, err := netlinkMessageHeaderAndData(b)
 		if err != nil {
 			return nil, err
 		}
-		m := syscall.NetlinkMessage{
+		m := NetlinkMessage{
 			Header: *h,
-			Data:   dbuf[:int(h.Len)-syscall.NLMSG_HDRLEN],
+			Data:   dbuf[:int(h.Len)-NLMSG_HDRLEN],
 		}
 		msgs = append(msgs, m)
 		b = b[dlen:]
@@ -35,11 +35,11 @@ func ParseNetlinkMessage(b []byte) ([]syscall.NetlinkMessage, error) {
 	return msgs, nil
 }
 
-func netlinkMessageHeaderAndData(b []byte) (*syscall.NlMsghdr, []byte, int, error) {
-	h := (*syscall.NlMsghdr)(unsafe.Pointer(&b[0]))
+func netlinkMessageHeaderAndData(b []byte) (*NlMsghdr, []byte, int, error) {
+	h := (*NlMsghdr)(unsafe.Pointer(&b[0]))
 	l := nlmAlignOf(int(h.Len))
-	if int(h.Len) < syscall.NLMSG_HDRLEN || l > len(b) {
+	if int(h.Len) < NLMSG_HDRLEN || l > len(b) {
 		return nil, nil, 0, syscall.EINVAL
 	}
-	return h, b[syscall.NLMSG_HDRLEN:], l, nil
+	return h, b[NLMSG_HDRLEN:], l, nil
 }
