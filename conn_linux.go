@@ -315,13 +315,6 @@ func linuxOption(o ConnOption) (int, bool) {
 	}
 }
 
-// sysToHeader converts a syscall.NlMsghdr to a Header.
-func sysToHeader(r syscall.NlMsghdr) Header {
-	// NB: the memory layout of Header and syscall.NlMsgHdr must be
-	// exactly the same for this unsafe cast to work
-	return *(*Header)(unsafe.Pointer(&r))
-}
-
 // newError converts an error number from netlink into the appropriate
 // system call error for Linux.
 func newError(errno int) error {

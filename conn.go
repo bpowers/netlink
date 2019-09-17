@@ -2,14 +2,14 @@ package netlink
 
 import (
 	"errors"
+	"golang.org/x/net/bpf"
 	"math/rand"
 	"os"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/bpf"
+	"unsafe"
 )
 
 // A Conn is a connection to netlink.  A Conn can be used to send and
@@ -533,6 +533,13 @@ func (c *Conn) fixMsg(m *Message, ml int) {
 // the incremented value.
 func (c *Conn) nextSequence() uint32 {
 	return atomic.AddUint32(c.seq, 1)
+}
+
+// sysToHeader converts a syscall.NlMsghdr to a Header.
+func sysToHeader(r NlMsghdr) Header {
+	// NB: the memory layout of Header and syscall.NlMsgHdr must be
+	// exactly the same for this unsafe cast to work
+	return *(*Header)(unsafe.Pointer(&r))
 }
 
 // Validate validates one or more reply Messages against a request Message,
