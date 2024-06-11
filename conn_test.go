@@ -173,6 +173,66 @@ func TestConnReceiveShortErrorMessage(t *testing.T) {
 	}
 }
 
+func TestConnReceiveNextBatch(t *testing.T) {
+	msg := netlink.Message{
+		Header: netlink.Header{
+			Sequence: 1,
+		},
+		Data: []byte{0xff, 0xff, 0xff, 0xff},
+	}
+
+	c := nltest.DialWithLimit(func(_ []netlink.Message) ([]netlink.Message, error) {
+		return nltest.Multipart([]netlink.Message{
+			msg,
+			msg,
+			msg,
+			// Will be filled with multipart done information.
+			{},
+		})
+	}, 2)
+	c.AcquireLock()
+	defer c.ReleaseLock()
+	defer c.Close()
+
+	_, err := c.ExecuteRequest(msg)
+	if err != nil {
+		t.Fatalf("failed to execute request: %v", err)
+	}
+	msgs, err := c.ReceiveNextBatch(msg, 2)
+	if err != nil {
+		t.Fatalf("failed to receive messages: %v", err)
+	}
+
+	msg.Header.Flags |= netlink.Multi
+
+	if l := len(msgs); l != 2 {
+		t.Fatalf("expected 2 messages, but got: %d", l)
+	}
+	for _, got := range msgs {
+		if !reflect.DeepEqual(msg, got) {
+			t.Fatalf("unexpected output messages from Conn.Receive:\n- want: %#v\n-  got: %#v",
+				msg, got)
+		}
+	}
+
+	msgs, err = c.ReceiveNextBatch(msg, 2)
+	if err != nil {
+		t.Fatalf("failed to receive messages: %v", err)
+	}
+
+	msg.Header.Flags |= netlink.Multi
+
+	if l := len(msgs); l != 1 {
+		t.Fatalf("expected 1 messages, but got: %d", l)
+	}
+	for _, got := range msgs {
+		if !reflect.DeepEqual(msg, got) {
+			t.Fatalf("unexpected output messages from Conn.Receive:\n- want: %#v\n-  got: %#v",
+				msg, got)
+		}
+	}
+}
+
 func TestConnJoinLeaveGroupUnsupported(t *testing.T) {
 	c := nltest.Dial(nil)
 	defer c.Close()
