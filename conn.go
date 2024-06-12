@@ -40,6 +40,9 @@ type Conn struct {
 	// mu serializes access to the netlink socket for the request/response
 	// transaction within Execute.
 	mu sync.RWMutex
+
+	// endOfStream is to indicate if the response is completely parsed for the current request.
+	endOfStream bool
 }
 
 // A Socket is an operating-system specific implementation of netlink
@@ -117,9 +120,15 @@ func (c *Conn) ReleaseLock() {
 	c.mu.Unlock()
 }
 
+func (c *Conn) EndOfStream() bool{
+	return c.endOfStream
+}
+
 // ExecuteRequest executes the request without parsing the response. Only to be called when the lock
 // is acquired.
 func (c *Conn) ExecuteRequest(message Message) (Message, error) {
+	// New request, therefore clearing the state
+	c.endOfStream = false
 	req, err := c.lockedSend(message)
 	if err != nil {
 		return Message{}, err
@@ -164,8 +173,8 @@ func (c *Conn) receiveNextBatch(limit int) ([]Message, error) {
 			return nil, err
 		}
 		res = append(res, msgs...)
-
-		if !multi || len(res) >= limit {
+		c.endOfStream = !multi
+		if c.endOfStream || len(res) >= limit {
 			return res, nil
 		}
 	}

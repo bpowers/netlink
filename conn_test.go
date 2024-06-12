@@ -205,6 +205,9 @@ func TestConnReceiveNextBatch(t *testing.T) {
 
 	msg.Header.Flags |= netlink.Multi
 
+	if c.EndOfStream() {
+		t.Fatalf("Expected not to reach end of stream.")
+	}
 	if l := len(msgs); l != 2 {
 		t.Fatalf("expected 2 messages, but got: %d", l)
 	}
@@ -222,6 +225,9 @@ func TestConnReceiveNextBatch(t *testing.T) {
 
 	msg.Header.Flags |= netlink.Multi
 
+	if !c.EndOfStream() {
+		t.Fatalf("Expected to reach end of stream.")
+	}
 	if l := len(msgs); l != 1 {
 		t.Fatalf("expected 1 messages, but got: %d", l)
 	}
