@@ -83,6 +83,19 @@ func Dial(fn Func) *netlink.Conn {
 	return netlink.NewConn(sock, PID)
 }
 
+// DialWithLimit sets up a netlink.Conn for testing using the specified Func. All requests
+// sent from the connection will be passed to the Func.  The connection should be
+// closed as usual when it is no longer needed. batchSize indicates the limit on the number of msg
+// to be returned on a single ReceiveMsg call.
+func DialWithLimit(fn Func, batchSize int) *netlink.Conn {
+	sock := &socket{
+		fn:        fn,
+		batchSize: batchSize,
+	}
+
+	return netlink.NewConn(sock, PID)
+}
+
 // CheckRequest returns a Func that verifies that each message in an incoming
 // request has the specified netlink header type and flags in the same slice
 // position index, and then passes the request through to fn.
@@ -132,8 +145,9 @@ var _ netlink.Socket = &socket{}
 type socket struct {
 	fn Func
 
-	msgs []netlink.Message
-	err  error
+	batchSize int
+	msgs      []netlink.Message
+	err       error
 }
 
 func (c *socket) Close() error { return nil }
@@ -191,11 +205,16 @@ func (c *socket) Receive() ([]netlink.Message, error) {
 	// final "multi-part done", so that a second call to Receive from netlink.Conn
 	// will drain that message.
 	if multi {
-		last := c.msgs[len(c.msgs)-1]
-		ret := c.msgs[:len(c.msgs)-1]
-		c.msgs = []netlink.Message{last}
-
-		return ret, c.err
+		if c.batchSize > 0 {
+			ret := c.msgs[:c.batchSize]
+			c.msgs = c.msgs[c.batchSize:]
+			return ret, c.err
+		} else {
+			last := c.msgs[len(c.msgs)-1]
+			ret := c.msgs[:len(c.msgs)-1]
+			c.msgs = []netlink.Message{last}
+			return ret, c.err
+		}
 	}
 
 	msgs, err := c.msgs, c.err

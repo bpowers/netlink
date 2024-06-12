@@ -40,6 +40,9 @@ type Conn struct {
 	// mu serializes access to the netlink socket for the request/response
 	// transaction within Execute.
 	mu sync.RWMutex
+
+	// endOfStream is to indicate if the response is completely parsed for the current request.
+	endOfStream bool
 }
 
 // A Socket is an operating-system specific implementation of netlink
@@ -107,6 +110,74 @@ func (c *Conn) Close() error {
 	// We rely on the kernel to deal with concurrent operations to the netlink
 	// socket itself.
 	return newOpError("close", c.sock.Close())
+}
+
+func (c *Conn) AcquireLock() {
+	c.mu.Lock()
+}
+
+func (c *Conn) ReleaseLock() {
+	c.mu.Unlock()
+}
+
+func (c *Conn) EndOfStream() bool{
+	return c.endOfStream
+}
+
+// ExecuteRequest executes the request without parsing the response. Only to be called when the lock
+// is acquired.
+func (c *Conn) ExecuteRequest(message Message) (Message, error) {
+	// New request, therefore clearing the state
+	c.endOfStream = false
+	req, err := c.lockedSend(message)
+	if err != nil {
+		return Message{}, err
+	}
+	return req, nil
+}
+
+// ReceiveNextBatch receive the next batch of messages for a particular request 'message'. Limit is the maximum number
+// of messages to be pulled in this iteration. Please note that this is not a hard limit and number of messages can be
+// greater than 'limit'. It means that we will stop reading once we breach 'limit'. Only to be called when the lock is
+// acquired.
+func (c *Conn) ReceiveNextBatch(message Message, limit int) ([]Message, error) {
+	replies, err := c.lockedReceiveNextBatch(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := Validate(message, replies); err != nil {
+		return nil, err
+	}
+
+	return replies, nil
+}
+
+func (c *Conn) lockedReceiveNextBatch(limit int) ([]Message, error) {
+	msgs, err := c.receiveNextBatch(limit)
+	return c.validateResponse(msgs, err)
+}
+
+func (c *Conn) receiveNextBatch(limit int) ([]Message, error) {
+	// NB: All non-nil errors returned from this function *must* be of type
+	// OpError in order to maintain the appropriate contract with callers of
+	// this package.
+	//
+	// This contract also applies to functions called within this function,
+	// such as checkMessage.
+
+	var res []Message
+	for {
+		msgs, multi, err := c.receiveMsg()
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, msgs...)
+		c.endOfStream = !multi
+		if c.endOfStream || len(res) >= limit {
+			return res, nil
+		}
+	}
 }
 
 // Execute sends a single Message to netlink using Send, receives one or more
@@ -245,6 +316,10 @@ func (c *Conn) Receive() ([]Message, error) {
 // socket itself.
 func (c *Conn) lockedReceive() ([]Message, error) {
 	msgs, err := c.receive()
+	return c.validateResponse(msgs, err)
+}
+
+func (c *Conn) validateResponse(msgs []Message, err error) ([]Message, error) {
 	if err != nil {
 		c.debug(func(d *debugger) {
 			d.debugf(1, "recv: err: %v", err)
@@ -285,38 +360,44 @@ func (c *Conn) receive() ([]Message, error) {
 
 	var res []Message
 	for {
-		msgs, err := c.sock.Receive()
+		msgs, multi, err := c.receiveMsg()
 		if err != nil {
-			return nil, newOpError("receive", err)
+			return nil, err
 		}
-
-		// If this message is multi-part, we will need to perform an recursive call
-		// to continue draining the socket
-		var multi bool
-
-		for _, m := range msgs {
-			if err := checkMessage(m); err != nil {
-				return nil, err
-			}
-
-			// Does this message indicate a multi-part message?
-			if m.Header.Flags&Multi == 0 {
-				// No, check the next messages.
-				continue
-			}
-
-			// Does this message indicate the last message in a series of
-			// multi-part messages from a single read?
-			multi = m.Header.Type != Done
-		}
-
 		res = append(res, msgs...)
-
 		if !multi {
 			// No more messages coming.
 			return res, nil
 		}
 	}
+}
+
+func (c *Conn) receiveMsg() ([]Message, bool, error) {
+	msgs, err := c.sock.Receive()
+	if err != nil {
+		return nil, false, newOpError("receive", err)
+	}
+
+	// If this message is multi-part, we will need to perform an recursive call
+	// to continue draining the socket
+	var multi bool
+
+	for _, m := range msgs {
+		if err := checkMessage(m); err != nil {
+			return nil, false, err
+		}
+
+		// Does this message indicate a multi-part message?
+		if m.Header.Flags&Multi == 0 {
+			// No, check the next messages.
+			continue
+		}
+
+		// Does this message indicate the last message in a series of
+		// multi-part messages from a single read?
+		multi = m.Header.Type != Done
+	}
+	return msgs, multi, nil
 }
 
 // A groupJoinLeaver is a Socket that supports joining and leaving
